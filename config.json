@@ -1,6 +1,6 @@
 {
 	"ip": "JOJO_VICE.aternos.me",
-	"port": "35927",
+	"port": "3527",
 	"name": "afkbot",
 	"version": "1.21.8",
 	"auto-night-skip":"true"
