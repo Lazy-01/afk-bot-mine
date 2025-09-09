@@ -16,7 +16,6 @@ var bot;
 var connected = 0;
 var actions = ['forward','back','left','right'];
 
-// إنشاء البوت
 function createBot() {
   console.log(`🔄 Connecting to ${host}:${port} as ${username} (v1.21.8)`);
 
@@ -79,16 +78,9 @@ function createBot() {
 console.log("⌛ Waiting 15s before connecting...");
 setTimeout(() => createBot(), 15000);
 
-//////////////////////////
-// دعم Render (Keep Alive)
-//////////////////////////
+// Express server لدعم Render/Replit keep-alive
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get("/", (req, res) => {
-  res.send("AFK Bot is running ✅");
-});
-
-app.listen(PORT, () => {
-  console.log(`🌐 Express server running on port ${PORT} (for Render/Replit keep-alive)`);
-});
+app.get("/", (req, res) => res.send("AFK Bot is running ✅"));
+app.listen(PORT, () => console.log(`🌐 Express server running on port ${PORT}`));

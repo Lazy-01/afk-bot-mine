@@ -1,32 +1,9 @@
 {
-  "name": "afkbot",
-  "version": "1.0.0",
-  "description": "AFK bot for Minecraft 1.21.8 on Replit/Render",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
-  "author": "MannuG",
-  "license": "ISC",
-  "engines": {
-    "node": ">=18"
-  },
   "dependencies": {
-    "fs": "0.0.1-security",
-    "minecraft-data": "^3.102.0",
-    "minecraft-protocol": "^1.64.0",
-    "mineflayer": "^4.37.0",
-    "mineflayer-blockfinder": "0.0.7",
-    "mineflayer-cmd": "^1.0.2",
-    "express": "^4.18.2"
-  },
-  "devDependencies": {},
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/fskhrijuanda/aternos-bot-24-7.git"
-  },
-  "bugs": {
-    "url": "https://github.com/fskhrijuanda/aternos-bot-24-7/issues"
-  },
-  "homepage": "https://github.com/fskhrijuanda/aternos-bot-24-7#readme"
+    "debug": "^4.4.1",
+    "express": "^5.1.0",
+    "fs": "^0.0.1-security",
+    "mineflayer": "github:PrismarineJS/mineflayer",
+    "mineflayer-cmd": "^1.1.3"
+  }
 }
