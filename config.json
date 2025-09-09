@@ -3,5 +3,5 @@
 	"port": "35927",
 	"name": "afkbot",
 	"version": "1.21.8",
-	"auto-night-skip":"false"
+	"auto-night-skip":"true"
 }
