@@ -1,0 +1,7 @@
+{
+	"ip":"0_lazy.aternos.me",
+	"port": "19063",
+	"name": "afkbot",
+	"version": "1.21.1",
+	"auto-night-skip":"false"
+}
