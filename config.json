@@ -1,7 +1,7 @@
 {
-	"ip":"0_lazy.aternos.me",
-	"port": "19063",
+	"ip": "JOJO_VICE.aternos.me",
+	"port": "35927",
 	"name": "afkbot",
-	"version": "1.21.1",
+	"version": "1.21.8",
 	"auto-night-skip":"false"
 }
