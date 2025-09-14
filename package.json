@@ -1,7 +1,7 @@
 {
   "name": "afkbot",
   "version": "1.0.0",
-  "description": "AFK bot for Minecraft 1.21.1 on Replit/Render",
+  "description": "AFK bot for Minecraft 1.21.1/1.21.4 on Replit/Render",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -14,10 +14,6 @@
   "dependencies": {
     "mineflayer": "^4.33.0",
     "mineflayer-cmd": "^1.0.2",
-    "mineflayer-pathfinder": "^1.9.0",
-    "minecraft-data": "^3.98.0",
-    "minecraft-protocol": "^1.62.0",
-    "vec3": "^0.1.7",
-    "express": "^4.18.2"
+    "minecraft-data": "^3.98.0"
   }
 }
