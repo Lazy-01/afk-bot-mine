@@ -6,7 +6,7 @@ const botConfig = {
   host: 'JOJO_VICE-NSjr.aternos.me',
   port: 14850,
   username: 'AFK_Bot',
-  version: '1.21',
+  version: '1.21.8',
   auth: 'offline'
 };
 
