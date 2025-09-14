@@ -1,7 +1,7 @@
 {
   "name": "afkbot",
   "version": "1.0.0",
-  "description": "AFK bot for Minecraft 1.21.8 on Replit/Render",
+  "description": "AFK bot for Minecraft 1.21.8 on Render",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -11,14 +11,14 @@
   "engines": {
     "node": ">=18"
   },
-"dependencies": {
-  "fs": "0.0.1-security",
-  "minecraft-data": "^3.98.0",
-  "minecraft-protocol": "^1.62.0",
-  "mineflayer": "github:PrismarineJS/mineflayer",
-  "mineflayer-blockfinder": "0.0.7",
-  "mineflayer-cmd": "^1.0.2",
-  "express": "^4.18.2"
-}
-
+  "dependencies": {
+    "fs": "0.0.1-security",
+    "express": "^4.18.2",
+    "minecraft-data": "^3.100.0",
+    "minecraft-protocol": "^1.63.0",
+    "mineflayer": "^4.36.0",
+    "mineflayer-pathfinder": "^1.6.0",
+    "mineflayer-blockfinder": "0.0.7",
+    "mineflayer-cmd": "^1.0.2"
+  }
 }
