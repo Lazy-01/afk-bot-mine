@@ -31,7 +31,7 @@ function createBot() {
     host,
     port,
     username,
-    version: "1.21.1",
+    version: "1.21.8",
     auth: "offline"
   });
 
