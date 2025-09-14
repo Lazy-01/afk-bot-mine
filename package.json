@@ -1,16 +1,13 @@
 {
   "name": "minecraft-afk-bot",
   "version": "1.0.0",
-  "description": "AFK bot for Minecraft 1.21.8 with pathfinder and bed sleeping",
-  "main": "bot.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "mineflayer": "PrismarineJS/mineflayer",
     "mineflayer-pathfinder": "PrismarineJS/mineflayer-pathfinder"
-  },
-  "author": "",
-  "license": "ISC"
+  }
 }
