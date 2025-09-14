@@ -2,114 +2,114 @@ const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const express = require('express');
 
-// إعدادات البوت
 const botConfig = {
   host: 'JOJO_VICE-NSjr.aternos.me', // غيرها لو السيرفر مختلف
   port: 14850,
-  username: 'afkbot',
-  version: '1.21', // 1.21 يغطي 1.21.8 عادي
+  username: 'AFK_Bot',
+  version: '1.21', // يغطي 1.21.8
   auth: 'offline'
 };
 
-const targetCoords = { x: 117.6, y: 73, z: 124.4 };
-const actions = ['forward', 'back', 'left', 'right'];
+const targetCoords = { x: 119, y: 74, z: 120 };
 let bot;
 
-// Express server عشان Render يضل يصحي البوت
-const app = express();
-app.get('/', (req, res) => res.send('✅ AFK Bot is running!'));
-app.listen(3000, () => console.log('🌐 Webserver ready for Render ping'));
-
-// إنشاء البوت
-function createBot() {
-  console.log('🔄 Connecting to server...');
+function startBot() {
   bot = mineflayer.createBot(botConfig);
   bot.loadPlugin(pathfinder);
 
-  bot.on('login', () => {
-    console.log('✅ Bot logged in');
-    bot.chat('AFK bot online 😎');
-  });
+  bot.once('spawn', () => {
+    console.log('✅ البوت دخل السيرفر!');
 
-  bot.on('spawn', () => {
-    console.log('🎮 Bot spawned!');
     const defaultMove = new Movements(bot);
     defaultMove.allowParkour = true;
     defaultMove.allowSprinting = true;
     bot.pathfinder.setMovements(defaultMove);
-    startAFK();
-  });
 
-  bot.on('end', () => {
-    console.log('❌ Bot disconnected, reconnecting in 15s...');
-    setTimeout(createBot, 15000);
-  });
+    // حلقة AFK + دفاع + نوم
+    setInterval(async () => {
+      if (!bot.entity) return;
 
-  bot.on('error', err => {
-    console.log('⚠️ Error:', err.message);
-  });
-}
+      const timeOfDay = bot.time.timeOfDay;
 
-// حلقة AFK
-function startAFK() {
-  if (!bot) return;
-  let lastChat = 0;
-
-  setInterval(async () => {
-    if (!bot.entity) return;
-
-    // حركة عشوائية
-    const action = actions[Math.floor(Math.random() * actions.length)];
-    bot.setControlState(action, true);
-    setTimeout(() => bot.setControlState(action, false), 2000);
-
-    // رسالة كل 5 دقايق
-    if (Date.now() - lastChat > 5 * 60 * 1000) {
-      bot.chat('AFK ✅');
-      lastChat = Date.now();
-    }
-
-    // الدفاع ضد الموبز القريبة
-    const mob = bot.nearestEntity(
-      e => e.type === 'mob' && e.kind === 'Hostile' && e.position.distanceTo(bot.entity.position) < 5
-    );
-    if (mob) {
-      try {
-        await bot.lookAt(mob.position, true);
-        bot.attack(mob);
-      } catch (err) {
-        console.log('⚔️ Attack failed:', err.message);
-      }
-    }
-
-    // وقت الليل → حاول ينام
-    const timeOfDay = bot.time.timeOfDay;
-    if (timeOfDay >= 13000 && timeOfDay <= 23000) {
-      const bed = bot.nearestEntity(e => e.name?.toLowerCase().includes('bed'));
-      if (bed) {
-        bot.chat('🛏️ Trying to sleep...');
-        const bedPos = bed.position;
-        const goal = new goals.GoalNear(bedPos.x, bedPos.y, bedPos.z, 1);
-        bot.pathfinder.setGoal(goal);
-
-        if (bot.entity.position.distanceTo(bedPos) < 2) {
-          try {
-            await bot.sleep(bot.blockAt(bedPos));
-            bot.chat('💤 Sleeping...');
-          } catch (err) {
-            bot.chat('Could not sleep: ' + err.message);
-          }
+      // الدفاع ضد الموبز القريبة
+      const mob = bot.nearestEntity(
+        e => e.type === 'mob' && e.kind === 'Hostile' && e.position.distanceTo(bot.entity.position) < 5
+      );
+      if (mob) {
+        try {
+          await bot.lookAt(mob.position, true);
+          bot.attack(mob);
+        } catch (err) {
+          console.log('⚔️ Attack failed:', err.message);
         }
       }
-    } else {
-      // بالنهار → روح للإحداثيات
+
+      // الليل → النوم على أقرب سرير
+      if (timeOfDay >= 13000 && timeOfDay <= 23000) {
+        const bed = bot.nearestEntity(e => e.type === 'object' && e.name?.toLowerCase().includes('bed'));
+        if (bed) {
+          bot.chat('🛏️ ليلة! راح أحاول أنام...');
+          const bedPos = bed.position;
+          const goal = new goals.GoalNear(bedPos.x, bedPos.y, bedPos.z, 1);
+          bot.pathfinder.setGoal(goal);
+
+          if (bot.entity.position.distanceTo(bedPos) < 2) {
+            try {
+              await bot.sleep(bot.blockAt(bedPos));
+              bot.chat('💤 نائم...');
+            } catch (err) {
+              bot.chat('⚠️ ما قدرت أنام: ' + err.message);
+            }
+          }
+          return;
+        }
+      }
+
+      // النهار → يروح للإحداثيات الهدف
       if (bot.entity.position.distanceTo(targetCoords) > 1) {
         const goal = new goals.GoalNear(targetCoords.x, targetCoords.y, targetCoords.z, 1);
         bot.pathfinder.setGoal(goal);
       }
-    }
-  }, 10000);
+
+      // حركة AFK عشوائية
+      const actions = ['forward', 'back', 'left', 'right'];
+      const random = actions[Math.floor(Math.random() * actions.length)];
+      bot.setControlState(random, true);
+      setTimeout(() => bot.setControlState(random, false), 1000);
+
+      // لف حول نفسه
+      bot.look(Math.random() * Math.PI * 2, 0);
+
+      // رسالة شات عشوائية
+      if (Math.random() > 0.7) bot.chat('✌️ AFK bot شغال!');
+    }, 15000); // كل 15 ثانية
+  });
+
+  bot.on('kicked', (reason) => {
+    console.log(`❌ انطرد: ${reason}`);
+    reconnect();
+  });
+
+  bot.on('end', () => {
+    console.log('⚠️ انقطع الاتصال، إعادة تشغيل...');
+    reconnect();
+  });
+
+  bot.on('error', (err) => {
+    console.log('⚠️ Error:', err.message);
+  });
 }
 
-// شغل البوت
-createBot();
+function reconnect() {
+  setTimeout(() => {
+    startBot();
+  }, 15000); // إعادة تشغيل بعد 15 ثانية
+}
+
+// Express server عشان Render يضل صاحي
+const app = express();
+app.get('/', (req, res) => res.send('✅ AFK Bot شغال 24/7!'));
+app.listen(3000, () => console.log('🌐 WebServer شغال على بورت 3000'));
+
+// تشغيل البوت
+startBot();
