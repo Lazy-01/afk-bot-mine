@@ -32,41 +32,37 @@ function startBot() {
 
       const timeOfDay = bot.time.timeOfDay;
 
+      // وظيفة للنوم
+      async function trySleep() {
+        const bed = bot.nearestEntity(e => e.type === 'object' && e.name?.toLowerCase().includes('bed'));
+        if (!bed) return false;
+
+        const bedPos = bed.position;
+        bot.pathfinder.setGoal(new goals.GoalNear(bedPos.x, bedPos.y, bedPos.z, 1));
+        if (bot.entity.position.distanceTo(bedPos) < 2) {
+          try {
+            await bot.sleep(bot.blockAt(bedPos));
+            bot.chat('💤 نائم!');
+            return true;
+          } catch (err) {
+            bot.chat('⚠️ ما قدرت أنام: ' + err.message);
+            return false;
+          }
+        }
+        return false;
+      }
+
       // إذا فيه لاعب نايم → البوت يروح ينام فورًا
       const sleepingPlayer = bot.players && Object.values(bot.players).find(p => p.entity && p.entity.isSleeping);
       if (sleepingPlayer) {
-        const bed = bot.nearestEntity(e => e.type === 'object' && e.name?.toLowerCase().includes('bed'));
-        if (bed) {
-          const bedPos = bed.position;
-          bot.pathfinder.setGoal(new goals.GoalNear(bedPos.x, bedPos.y, bedPos.z, 1));
-          if (bot.entity.position.distanceTo(bedPos) < 2) {
-            try {
-              await bot.sleep(bot.blockAt(bedPos));
-              bot.chat('💤 نائم مع اللاعبين!');
-            } catch (err) {
-              bot.chat('⚠️ ما قدرت أنام: ' + err.message);
-            }
-          }
-          return;
-        }
+        await trySleep();
+        return;
       }
 
-      // الليل → النوم على أقرب سرير
+      // الليل → البوت يحاول ينام
       if (timeOfDay >= 13000 && timeOfDay <= 23000) {
-        const bed = bot.nearestEntity(e => e.type === 'object' && e.name?.toLowerCase().includes('bed'));
-        if (bed) {
-          const bedPos = bed.position;
-          bot.pathfinder.setGoal(new goals.GoalNear(bedPos.x, bedPos.y, bedPos.z, 1));
-          if (bot.entity.position.distanceTo(bedPos) < 2) {
-            try {
-              await bot.sleep(bot.blockAt(bedPos));
-              bot.chat('💤 نائم...');
-            } catch (err) {
-              bot.chat('⚠️ ما قدرت أنام: ' + err.message);
-            }
-          }
-          return;
-        }
+        await trySleep();
+        return;
       }
 
       // النهار → يروح للإحداثيات الهدف
@@ -107,10 +103,10 @@ function startBot() {
 function reconnect() {
   setTimeout(() => {
     startBot();
-  }, 15000);
+  }, 5000);
 }
 
-// Express server عشان Render يضل صاحي
+// Express server عشان Render يظل صاحي
 const app = express();
 app.get('/', (req, res) => res.send('✅ AFK Bot شغال 24/7!'));
 app.listen(3000, () => console.log('🌐 WebServer شغال على بورت 3000'));
