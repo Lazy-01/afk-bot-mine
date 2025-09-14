@@ -14,9 +14,8 @@
   "dependencies": {
     "fs": "0.0.1-security",
     "express": "^4.18.2",
-    "minecraft-data": "^3.98.0",
-    "minecraft-protocol": "^1.62.0",
-    "mineflayer": "^4.33.0",
+    "mineflayer": "github:PrismarineJS/mineflayer",
+    "minecraft-data": "github:PrismarineJS/minecraft-data",
     "mineflayer-pathfinder": "^1.6.0",
     "mineflayer-blockfinder": "0.0.7",
     "mineflayer-cmd": "^1.0.2"
