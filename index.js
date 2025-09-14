@@ -1,6 +1,5 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinding');
-const cmd = require('mineflayer-cmd').plugin;
 const express = require('express');
 
 // Config
@@ -25,7 +24,6 @@ function createBot() {
   console.log('🔄 Connecting...');
   bot = mineflayer.createBot(botConfig);
   bot.loadPlugin(pathfinder);
-  bot.loadPlugin(cmd);
 
   bot.on('login', () => {
     console.log('✅ Bot logged in');
