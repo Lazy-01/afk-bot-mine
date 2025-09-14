@@ -40,21 +40,19 @@ function createBot() {
     bot.chat("Hello, AFK bot 🤖");
   });
 
-  bot.on('spawn', () => {
-    connected = true;
-  });
+  bot.on('spawn', () => connected = true);
 
   bot.on('death', () => bot.emit("respawn"));
 
-  // الدفاع التلقائي عن البوت
+  // الدفاع التلقائي
   bot.on('entityHurt', (entity) => {
     if (entity.type === 'mob') {
       bot.attack(entity);
     }
   });
 
-  // حركة AFK + نوم
-  setInterval(async () => {
+  // AFK + رسائل + نوم + حركة
+  setInterval(() => {
     if (!connected) return;
 
     // حركة قصيرة عشوائية
@@ -68,21 +66,15 @@ function createBot() {
       lastChat = Date.now();
     }
 
-    // النوم تلقائيًا إذا الليل
+    // auto-night-skip
     if (nightskip && bot.time.timeOfDay >= 13000 && !bot.isSleeping) {
       const bed = bot.findBlock({
         matching: b => b.name.includes('bed'),
-        maxDistance: 64
+        maxDistance: 5
       });
-
-      if (bed) {
-        const goal = new goals.GoalBlock(bed.position.x, bed.position.y, bed.position.z);
-        bot.pathfinder.setMovements(new Movements(bot));
-        bot.pathfinder.goto(goal).then(() => {
-          bot.sleep(bed).catch(() => {});
-        }).catch(() => {});
-      }
+      if (bed) bot.sleep(bed).catch(() => {});
     }
+
   }, 10000);
 
   bot.on('end', () => {
@@ -91,10 +83,21 @@ function createBot() {
     setTimeout(createBot, 30000);
   });
 
-  bot.on('error', (err) => {
-    console.log("⚠️ Error:", err.message);
-  });
+  bot.on('error', (err) => console.log("⚠️ Error:", err.message));
 }
 
-// بدء التشغيل بعد 10 ثواني
-setTimeout(createBot, 10000);
+// التحرك لأي إحداثيات
+function goToCoords(x, y, z) {
+  const mcData = require('minecraft-data')(bot.version);
+  bot.pathfinder.setMovements(new Movements(bot, mcData));
+  const { GoalBlock } = goals;
+  bot.pathfinder.setGoal(new GoalBlock(x, y, z));
+}
+
+// بدء التشغيل
+setTimeout(createBot, 5000);
+
+// مثال: التحرك إلى إحداثيات محددة بعد 20 ثانية
+setTimeout(() => {
+  if (bot && bot.pathfinder) goToCoords(100, 64, 200);
+}, 20000);
