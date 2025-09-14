@@ -3,8 +3,8 @@ const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const express = require('express');
 
 const botConfig = {
-  host: 'اسم-سيرفرك.aternos.me',
-  port: 12345,
+  host: 'JOJO_VICE-NSjr.aternos.me',
+  port: 14850,
   username: 'AFK_Bot',
   version: '1.21',
   auth: 'offline'
