@@ -160,9 +160,3 @@ const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => res.send("AFK Bot is running ✅"));
 app.listen(PORT, () => console.log(`🌐 Express server running on port ${PORT}`));
-// Express server لدعم Render/Replit keep-alive
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get("/", (req, res) => res.send("AFK Bot is running ✅"));
-app.listen(PORT, () => console.log(`🌐 Express server running on port ${PORT}`));
