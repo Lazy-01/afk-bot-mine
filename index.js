@@ -1,35 +1,26 @@
 const mineflayer = require('mineflayer');
+const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const cmd = require('mineflayer-cmd').plugin;
 const fs = require('fs');
 const express = require('express');
 
-// Keep-Alive للـ Render/Replit
+// Keep-Alive Render
 const app = express();
 app.get('/', (req, res) => res.send('Bot is alive!'));
-app.listen(3000, () => console.log('🌐 Express server running for Keep-Alive'));
+app.listen(3000, () => console.log('🌐 Render Keep-Alive active'));
 
-// قراءة الإعدادات من config.json
-let config = JSON.parse(fs.readFileSync('config.json'));
-let host = config.ip;
-let port = config.port;
-let username = config.name;
-let nightskip = config['auto-night-skip'] === "true";
+const config = JSON.parse(fs.readFileSync('config.json'));
+const host = config.ip;
+const port = config.port;
+const username = config.name;
+const nightskip = config['auto-night-skip'] === "true";
 
 let bot;
 let connected = false;
 let lastChat = 0;
-let moving = false;
-let lastAction;
 const actions = ['forward', 'back', 'left', 'right'];
-const moveInterval = 2; // seconds
-const maxRandom = 5;
-const pi = 3.14159;
-let defend = true; // true = يهاجم الوحوش تلقائي، false = لا
-let targetCoords = null;
 
 function createBot() {
-  console.log(`🔄 Connecting to ${host}:${port} as ${username} (v1.21.8)`);
-
   bot = mineflayer.createBot({
     host,
     port,
@@ -39,28 +30,32 @@ function createBot() {
   });
 
   bot.loadPlugin(cmd);
+  bot.loadPlugin(pathfinder);
 
   bot.on('login', () => {
     console.log("✅ Logged In");
-    bot.chat("Hello, AFK bot 🤖");
     connected = true;
+    bot.chat("Hello, AFK bot 🤖");
   });
 
   bot.on('spawn', () => {
     connected = true;
   });
 
-  bot.on('death', () => {
-    bot.emit("respawn");
-    console.log("☠️ Bot died, respawning...");
+  bot.on('death', () => bot.emit("respawn"));
+
+  // الدفاع التلقائي عن البوت
+  bot.on('entityHurt', (entity) => {
+    if (!entity.type === 'mob') return;
+    bot.attack(entity);
   });
 
-  // حركة AFK عشوائية + رسائل AFK
-  setInterval(() => {
+  // حركة AFK + النوم
+  setInterval(async () => {
     if (!connected) return;
 
-    // حركة قصيرة عشوائية
-    let action = actions[Math.floor(Math.random() * actions.length)];
+    // حركة عشوائية قصيرة
+    const action = actions[Math.floor(Math.random() * actions.length)];
     bot.setControlState(action, true);
     setTimeout(() => bot.setControlState(action, false), 2000);
 
@@ -70,43 +65,24 @@ function createBot() {
       lastChat = Date.now();
     }
 
-    // إذا حددنا إحداثيات يتحرك لها
-    if (targetCoords && bot.pathfinder) {
-      bot.pathfinder.goto(targetCoords).catch(()=>{});
-    }
-
-  }, 10000);
-
-  // أوامر شات
-  bot.on('chat', (usernameChat, message) => {
-    if (usernameChat === username) return; // تجاهل رسائل البوت نفسه
-    const args = message.split(" ");
-
-    // الذهاب لإحداثيات معينة
-    if (args[0] === "!goto" && args.length === 4) {
-      let x = parseFloat(args[1]);
-      let y = parseFloat(args[2]);
-      let z = parseFloat(args[3]);
-      targetCoords = { x, y, z };
-      bot.chat(`🧭 Moving to ${x}, ${y}, ${z}`);
-    }
-
-    // تفعيل/تعطيل الدفاع
-    if (args[0] === "!defend") {
-      if (args[1] === "on") {
-        defend = true;
-        bot.chat("🛡️ Defense enabled");
-      } else if (args[1] === "off") {
-        defend = false;
-        bot.chat("🛡️ Defense disabled");
+    // النوم تلقائيًا إذا الليل
+    if (nightskip && bot.time.timeOfDay >= 13000 && !bot.isSleeping) {
+      const bed = bot.findBlock({
+        matching: b => b.name.includes('bed'),
+        maxDistance: 64
+      });
+      if (bed) {
+        const goal = new goals.GoalBlock(bed.position.x, bed.position.y, bed.position.z);
+        bot.pathfinder.setMovements(new Movements(bot));
+        bot.pathfinder.goto(goal).then(() => bot.sleep(bed).catch(() => {})).catch(() => {});
       }
     }
-  });
+  }, 10000);
 
   bot.on('end', () => {
     console.log("❌ Bot disconnected, reconnecting in 30s...");
     connected = false;
-    setTimeout(() => createBot(), 30000);
+    setTimeout(createBot, 30000);
   });
 
   bot.on('error', (err) => {
@@ -114,5 +90,5 @@ function createBot() {
   });
 }
 
-// بدء التشغيل بعد 10 ثوانٍ للتأكد أن السيرفر جاهز
-setTimeout(() => createBot(), 10000);
+// بدء التشغيل بعد 10 ثواني
+setTimeout(createBot, 10000);
