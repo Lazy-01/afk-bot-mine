@@ -7,7 +7,7 @@ const botConfig = {
   host: 'JOJO_VICE-NSjr.aternos.me',
   port: 14850,
   username: 'afkbot',
-  version: '1.21.8',
+  version: '1.21',
   auth: 'offline'
 };
 const targetCoords = { x: 117.6, y: 73, z: 124.4 };
