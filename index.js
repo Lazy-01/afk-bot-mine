@@ -6,13 +6,12 @@ const botConfig = {
   host: 'JOJO_VICE-NSjr.aternos.me',
   port: 14850,
   username: 'AFK_Bot',
-  version: false,
+  version: '1.21',
   auth: 'offline'
 };
 
-const targetCoords = { x: 119, y: 74, z: 120 };
+const targetCoords = { x: 112, y: 74, z: 116 };
 let bot;
-let someoneSleeping = false; // حالة: في لاعب نايم أو لا
 
 function startBot() {
   bot = mineflayer.createBot(botConfig);
@@ -21,69 +20,77 @@ function startBot() {
   bot.once('spawn', () => {
     console.log('✅ البوت دخل السيرفر!');
 
-    // إعدادات الحركة
     const defaultMove = new Movements(bot);
     defaultMove.allowParkour = true;
     defaultMove.allowSprinting = true;
-    defaultMove.canDig = false;   // ❌ ما يكسر
-    defaultMove.canPlace = false; // ❌ ما يبني
+    defaultMove.canDig = false;
     bot.pathfinder.setMovements(defaultMove);
 
-    // مراقبة رسائل الشات → لو لاعب نام
-    bot.on('chat', (username, message) => {
-      if (username === bot.username) return;
-      if (message.toLowerCase().includes('is now sleeping') || message.includes('ذهب للنوم')) {
-        someoneSleeping = true;
-        trySleep();
-      }
-    });
-
-    // إذا صحى
-    bot.on('wake', () => {
-      someoneSleeping = false;
-      bot.chat('☀️ صباح الخير!');
-    });
-
-    // حلقة AFK
-    setInterval(() => {
+    setInterval(async () => {
       if (!bot.entity) return;
 
-      if (!someoneSleeping) {
-        // يتحرك للمكان المحدد
-        if (bot.entity.position.distanceTo(targetCoords) > 1) {
-          const goal = new goals.GoalNear(targetCoords.x, targetCoords.y, targetCoords.z, 1);
-          bot.pathfinder.setGoal(goal, true);
+      const timeOfDay = bot.time.timeOfDay;
+
+      // إيقاف حركة AFK قبل النوم
+      const stopAFK = () => ['forward','back','left','right'].forEach(a => bot.setControlState(a, false));
+
+      // ابحث عن أقرب سرير
+      const bedBlock = bot.findBlock({
+        matching: block => block.name.includes('bed'),
+        maxDistance: 10
+      });
+
+      // لو فيه لاعب نايم → ينام فورًا
+      const sleepingPlayer = Object.values(bot.players).find(p => p.entity && p.entity.isSleeping);
+      if (sleepingPlayer && bedBlock) {
+        stopAFK();
+        try {
+          await bot.pathfinder.goto(new goals.GoalBlock(bedBlock.position.x, bedBlock.position.y, bedBlock.position.z));
+          await bot.sleep(bedBlock);
+          if (bot.connected) bot.chat('💤 نائم مع اللاعبين!');
+        } catch (err) {
+          if (bot.connected) bot.chat('⚠️ ما قدرت أنام: ' + err.message);
         }
-
-        // حركة عشوائية صغيرة
-        const actions = ['forward', 'back', 'left', 'right'];
-        const random = actions[Math.floor(Math.random() * actions.length)];
-        bot.setControlState(random, true);
-        setTimeout(() => bot.setControlState(random, false), 1000);
-
-        // يلف حول نفسه
-        bot.look(Math.random() * Math.PI * 2, 0);
-
-        // رسالة عشوائية
-        if (Math.random() > 0.7) bot.chat('✌️ AFK bot شغال!');
+        return;
       }
-    }, 15000);
+
+      // النوم بالليل
+      if (timeOfDay > 12540 && timeOfDay < 23460 && bedBlock) {
+        stopAFK();
+        try {
+          await bot.pathfinder.goto(new goals.GoalBlock(bedBlock.position.x, bedBlock.position.y, bedBlock.position.z));
+          await bot.sleep(bedBlock);
+          if (bot.connected) bot.chat('💤 نائم...');
+        } catch (err) {
+          if (bot.connected) bot.chat('⚠️ ما قدرت أنام: ' + err.message);
+        }
+        return;
+      }
+
+      // النهار → يروح للإحداثيات الهدف
+      if (bot.entity.position.distanceTo(targetCoords) > 1) {
+        const goal = new goals.GoalNear(targetCoords.x, targetCoords.y, targetCoords.z, 1);
+        bot.pathfinder.setGoal(goal);
+      }
+
+      // حركة AFK عشوائية
+      const actions = ['forward', 'back', 'left', 'right'];
+      const random = actions[Math.floor(Math.random() * actions.length)];
+      bot.setControlState(random, true);
+      setTimeout(() => bot.setControlState(random, false), 1000);
+
+      // لف حول نفسه
+      bot.look(Math.random() * Math.PI * 2, 0);
+
+      // رسالة شات عشوائية
+      if (Math.random() > 0.7 && bot.connected) bot.chat('✌️ AFK bot شغال!');
+    }, 30000);
   });
 
-  bot.on('goal_reached', () => {
-    console.log('📍 وصل للإحداثيات الهدف.');
+  bot.on('kicked', (reason) => {
+    console.log(`❌ انطرد: ${reason}`);
+    reconnect();
   });
-
-  bot.on('path_update', (results) => {
-    if (results.status === 'noPath') {
-      bot.chat('⚠️ ما قدرت أوصل، الطريق مسدود!');
-    }
-  });
-
-bot.on('kicked', (reason, loggedIn) => {
-  console.log(`❌ انطرد: ${JSON.stringify(reason)}`);
-});
-
 
   bot.on('end', () => {
     console.log('⚠️ انقطع الاتصال، إعادة تشغيل...');
@@ -93,35 +100,24 @@ bot.on('kicked', (reason, loggedIn) => {
   bot.on('error', (err) => {
     console.log('⚠️ Error:', err.message);
   });
-
-  async function trySleep() {
-    if (bot.time.timeOfDay >= 13000 && bot.time.timeOfDay <= 23000) {
-      const bed = bot.nearestEntity(e => e.type === 'object' && e.name?.toLowerCase().includes('bed'));
-      if (bed) {
-        const bedPos = bed.position;
-        const goal = new goals.GoalNear(bedPos.x, bedPos.y, bedPos.z, 1);
-        bot.pathfinder.setGoal(goal);
-
-        if (bot.entity.position.distanceTo(bedPos) < 2) {
-          try {
-            await bot.sleep(bot.blockAt(bedPos));
-            bot.chat('💤 نايم...');
-          } catch (err) {
-            bot.chat('⚠️ ما قدرت أنام: ' + err.message);
-          }
-        }
-      }
-    }
-  }
 }
 
 function reconnect() {
   setTimeout(() => {
+    console.log('🔄 إعادة تشغيل البوت...');
     startBot();
-  }, 15000);
+  }, 5000);
 }
 
-// Express server
+process.on('uncaughtException', (err) => {
+  console.log('💥 خطأ غير متوقع:', err.message);
+  reconnect();
+});
+
+process.on('unhandledRejection', (err) => {
+  console.log('💥 Promise مرفوضة:', err.message);
+});
+
 const app = express();
 app.get('/', (req, res) => res.send('✅ AFK Bot شغال 24/7!'));
 app.listen(3000, () => console.log('🌐 WebServer شغال على بورت 3000'));
