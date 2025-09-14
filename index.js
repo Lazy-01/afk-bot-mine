@@ -1,33 +1,34 @@
 const mineflayer = require('mineflayer');
-const { pathfinder, Movements, goals } = require('mineflayer-pathfinding');
+const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const express = require('express');
 
-// Config
+// إعدادات البوت
 const botConfig = {
-  host: 'JOJO_VICE-NSjr.aternos.me',
+  host: 'JOJO_VICE-NSjr.aternos.me', // غيرها لو السيرفر مختلف
   port: 14850,
   username: 'afkbot',
-  version: '1.21',
+  version: '1.21', // 1.21 يغطي 1.21.8 عادي
   auth: 'offline'
 };
+
 const targetCoords = { x: 117.6, y: 73, z: 124.4 };
 const actions = ['forward', 'back', 'left', 'right'];
 let bot;
 
-// Express to keep the bot alive on Render
+// Express server عشان Render يضل يصحي البوت
 const app = express();
-app.get('/', (req, res) => res.send('AFK Bot Running'));
-app.listen(3000, () => console.log('Server is ready for Render ping'));
+app.get('/', (req, res) => res.send('✅ AFK Bot is running!'));
+app.listen(3000, () => console.log('🌐 Webserver ready for Render ping'));
 
-// Create bot
+// إنشاء البوت
 function createBot() {
-  console.log('🔄 Connecting...');
+  console.log('🔄 Connecting to server...');
   bot = mineflayer.createBot(botConfig);
   bot.loadPlugin(pathfinder);
 
   bot.on('login', () => {
     console.log('✅ Bot logged in');
-    bot.chat('Hello! AFK bot online!');
+    bot.chat('AFK bot online 😎');
   });
 
   bot.on('spawn', () => {
@@ -44,10 +45,12 @@ function createBot() {
     setTimeout(createBot, 15000);
   });
 
-  bot.on('error', err => console.log('⚠️ Bot error:', err.message));
+  bot.on('error', err => {
+    console.log('⚠️ Error:', err.message);
+  });
 }
 
-// AFK loop
+// حلقة AFK
 function startAFK() {
   if (!bot) return;
   let lastChat = 0;
@@ -55,44 +58,51 @@ function startAFK() {
   setInterval(async () => {
     if (!bot.entity) return;
 
-    // Random movement for AFK
+    // حركة عشوائية
     const action = actions[Math.floor(Math.random() * actions.length)];
     bot.setControlState(action, true);
     setTimeout(() => bot.setControlState(action, false), 2000);
 
-    // Send AFK message every 5 minutes
+    // رسالة كل 5 دقايق
     if (Date.now() - lastChat > 5 * 60 * 1000) {
       bot.chat('AFK ✅');
       lastChat = Date.now();
     }
 
-    // Defend against nearby hostile mobs
-    const mob = bot.nearestEntity(e => e.type === 'mob' && e.position.distanceTo(bot.entity.position) < 5 && e.kind === 'Hostile');
+    // الدفاع ضد الموبز القريبة
+    const mob = bot.nearestEntity(
+      e => e.type === 'mob' && e.kind === 'Hostile' && e.position.distanceTo(bot.entity.position) < 5
+    );
     if (mob) {
-      bot.lookAt(mob.position);
-      bot.attack(mob);
+      try {
+        await bot.lookAt(mob.position, true);
+        bot.attack(mob);
+      } catch (err) {
+        console.log('⚔️ Attack failed:', err.message);
+      }
     }
 
-    // Check for nighttime and find nearest bed
+    // وقت الليل → حاول ينام
     const timeOfDay = bot.time.timeOfDay;
-    if (timeOfDay >= 13000 && timeOfDay <= 23000) { // Nighttime
-      const bed = bot.nearestEntity(e => e.type === 'object' && e.objectType === 'Bed');
+    if (timeOfDay >= 13000 && timeOfDay <= 23000) {
+      const bed = bot.nearestEntity(e => e.name?.toLowerCase().includes('bed'));
       if (bed) {
-        bot.chat('Attempting to sleep...');
+        bot.chat('🛏️ Trying to sleep...');
         const bedPos = bed.position;
         const goal = new goals.GoalNear(bedPos.x, bedPos.y, bedPos.z, 1);
         bot.pathfinder.setGoal(goal);
+
         if (bot.entity.position.distanceTo(bedPos) < 2) {
           try {
             await bot.sleep(bot.blockAt(bedPos));
-            bot.chat('Sleeping...');
+            bot.chat('💤 Sleeping...');
           } catch (err) {
             bot.chat('Could not sleep: ' + err.message);
           }
         }
       }
     } else {
-      // Move to target coordinates during daytime
+      // بالنهار → روح للإحداثيات
       if (bot.entity.position.distanceTo(targetCoords) > 1) {
         const goal = new goals.GoalNear(targetCoords.x, targetCoords.y, targetCoords.z, 1);
         bot.pathfinder.setGoal(goal);
@@ -101,5 +111,5 @@ function startAFK() {
   }, 10000);
 }
 
-// Start bot
+// شغل البوت
 createBot();
