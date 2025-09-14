@@ -1,19 +1,17 @@
 {
-  "name": "afkbot",
+  "name": "minecraft-afk-bot",
   "version": "1.0.0",
-  "description": "Smart AFK bot for Minecraft 1.21.8 on Render/Replit",
-  "main": "index.js",
+  "description": "AFK bot for Minecraft 1.21.8 with pathfinding and bed sleeping",
+  "main": "bot.js",
   "scripts": {
-    "start": "node index.js"
-  },
-  "author": "MannuG",
-  "license": "ISC",
-  "engines": {
-    "node": ">=18"
+    "start": "node bot.js"
   },
   "dependencies": {
-    "prismarinejs/mineflayer": "github:PrismarineJS/mineflayer#master",
-    "mineflayer-cmd": "^1.0.2",
-    "express": "^4.18.2"
-  }
+    "express": "^4.18.2",
+    "mineflayer": "^4.20.1",
+    "mineflayer-cmd": "^0.1.0",
+    "mineflayer-pathfinding": "^2.0.1"
+  },
+  "author": "",
+  "license": "ISC"
 }
