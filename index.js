@@ -1,30 +1,30 @@
 const mineflayer = require('mineflayer');
+const { pathfinder, Movements, goals } = require('mineflayer-pathfinding');
 const cmd = require('mineflayer-cmd').plugin;
 const express = require('express');
 
 // Config
 const botConfig = {
-  host: 'JOJO_VICE-NSjr.aternos.me', // ضع هنا IP السيرفر
-  port: 14850,               // ضع هنا المنفذ
-  username: 'afkbot',        // اسم البوت
+  host: 'JOJO_VICE-NSjr.aternos.me',
+  port: 14850,
+  username: 'afkbot',
   version: '1.21.8',
   auth: 'offline'
 };
-
-const targetCoords = { x: 117.6, y: 73, z: 124.4 }; // إحداثيات تقريبية
+const targetCoords = { x: 117.6, y: 73, z: 124.4 };
 const actions = ['forward', 'back', 'left', 'right'];
-
 let bot;
 
-// Express لتجنب توقف Render
+// Express to keep the bot alive on Render
 const app = express();
 app.get('/', (req, res) => res.send('AFK Bot Running'));
 app.listen(3000, () => console.log('Server is ready for Render ping'));
 
-// إنشاء البوت
+// Create bot
 function createBot() {
   console.log('🔄 Connecting...');
   bot = mineflayer.createBot(botConfig);
+  bot.loadPlugin(pathfinder);
   bot.loadPlugin(cmd);
 
   bot.on('login', () => {
@@ -34,6 +34,10 @@ function createBot() {
 
   bot.on('spawn', () => {
     console.log('🎮 Bot spawned!');
+    const defaultMove = new Movements(bot);
+    defaultMove.allowParkour = true;
+    defaultMove.allowSprinting = true;
+    bot.pathfinder.setMovements(defaultMove);
     startAFK();
   });
 
@@ -50,61 +54,54 @@ function startAFK() {
   if (!bot) return;
   let lastChat = 0;
 
-  setInterval(() => {
+  setInterval(async () => {
     if (!bot.entity) return;
 
-    // حركة قصيرة عشوائية
+    // Random movement for AFK
     const action = actions[Math.floor(Math.random() * actions.length)];
     bot.setControlState(action, true);
     setTimeout(() => bot.setControlState(action, false), 2000);
 
-    // رسالة AFK كل 5 دقائق
+    // Send AFK message every 5 minutes
     if (Date.now() - lastChat > 5 * 60 * 1000) {
       bot.chat('AFK ✅');
       lastChat = Date.now();
     }
 
-    // الدفاع عن نفسه
-    const mob = Object.values(bot.entities).find(e => e.type === 'mob' && e.position.distanceTo(bot.entity.position) < 5);
+    // Defend against nearby hostile mobs
+    const mob = bot.nearestEntity(e => e.type === 'mob' && e.position.distanceTo(bot.entity.position) < 5 && e.kind === 'Hostile');
     if (mob) {
+      bot.lookAt(mob.position);
       bot.attack(mob);
     }
 
-    // الذهاب إلى الإحداثيات المحددة
-    if (bot.entity.position.distanceTo(targetCoords) > 1) {
-      moveTowards(targetCoords);
-    }
-
-    // النوم على أقرب سرير عند الليل إذا أحد اللاعبين نائم
+    // Check for nighttime and find nearest bed
     const timeOfDay = bot.time.timeOfDay;
-    if (timeOfDay >= 13000 && timeOfDay <= 23000) { // الليل
-      const bed = Object.values(bot.entities).find(e => e.type === 'object' && e.mobType === 'bed');
+    if (timeOfDay >= 13000 && timeOfDay <= 23000) { // Nighttime
+      const bed = bot.nearestEntity(e => e.type === 'object' && e.objectType === 'Bed');
       if (bed) {
-        bot.chat('/msg Attempting to sleep...');
-        moveTowards({ x: bed.position.x, y: bed.position.y, z: bed.position.z });
-        setTimeout(() => bot.chat('/sleep'), 2000);
+        bot.chat('Attempting to sleep...');
+        const bedPos = bed.position;
+        const goal = new goals.GoalNear(bedPos.x, bedPos.y, bedPos.z, 1);
+        bot.pathfinder.setGoal(goal);
+        if (bot.entity.position.distanceTo(bedPos) < 2) {
+          try {
+            await bot.sleep(bot.blockAt(bedPos));
+            bot.chat('Sleeping...');
+          } catch (err) {
+            bot.chat('Could not sleep: ' + err.message);
+          }
+        }
+      }
+    } else {
+      // Move to target coordinates during daytime
+      if (bot.entity.position.distanceTo(targetCoords) > 1) {
+        const goal = new goals.GoalNear(targetCoords.x, targetCoords.y, targetCoords.z, 1);
+        bot.pathfinder.setGoal(goal);
       }
     }
-
   }, 10000);
 }
 
-// تحريك البوت تقريبياً نحو الإحداثيات
-function moveTowards(coords) {
-  if (!bot.entity) return;
-  const pos = bot.entity.position;
-  if (coords.x > pos.x) bot.setControlState('forward', true);
-  else bot.setControlState('back', true);
-  if (coords.z > pos.z) bot.setControlState('right', true);
-  else bot.setControlState('left', true);
-
-  setTimeout(() => {
-    bot.setControlState('forward', false);
-    bot.setControlState('back', false);
-    bot.setControlState('left', false);
-    bot.setControlState('right', false);
-  }, 2000);
-}
-
-// بدء البوت
+// Start bot
 createBot();
