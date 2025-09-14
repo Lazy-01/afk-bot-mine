@@ -3,10 +3,10 @@ const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const express = require('express');
 
 const botConfig = {
-  host: 'JOJO_VICE-NSjr.aternos.me', // غيرها لو السيرفر مختلف
+  host: 'JOJO_VICE-NSjr.aternos.me', // غيّر حسب سيرفرك
   port: 14850,
   username: 'AFK_Bot',
-  version: '1.21.8', // يغطي 1.21.8
+  version: '1.21.8',
   auth: 'offline'
 };
 
@@ -25,7 +25,6 @@ function startBot() {
     defaultMove.allowSprinting = true;
     bot.pathfinder.setMovements(defaultMove);
 
-    // حلقة AFK + دفاع + نوم
     setInterval(async () => {
       if (!bot.entity) return;
 
@@ -44,24 +43,40 @@ function startBot() {
         }
       }
 
-      // الليل → النوم على أقرب سرير
+      // النوم بالليل حسب اللاعبين أو لو ما فيه لاعبين
       if (timeOfDay >= 13000 && timeOfDay <= 23000) {
         const bed = bot.nearestEntity(e => e.type === 'object' && e.name?.toLowerCase().includes('bed'));
         if (bed) {
-          bot.chat('🛏️ ليلة! راح أحاول أنام...');
-          const bedPos = bed.position;
-          const goal = new goals.GoalNear(bedPos.x, bedPos.y, bedPos.z, 1);
-          bot.pathfinder.setGoal(goal);
+          let shouldSleep = true; // بشكل افتراضي ينام
 
-          if (bot.entity.position.distanceTo(bedPos) < 2) {
-            try {
-              await bot.sleep(bot.blockAt(bedPos));
-              bot.chat('💤 نائم...');
-            } catch (err) {
-              bot.chat('⚠️ ما قدرت أنام: ' + err.message);
+          // إذا فيه لاعبين أونلاين نتحقق لو فيه لاعب نايم
+          if (Object.keys(bot.players).length > 0) {
+            shouldSleep = false;
+            for (const username in bot.players) {
+              const player = bot.players[username];
+              if (player.entity && player.entity.isSleeping) {
+                shouldSleep = true;
+                break;
+              }
             }
           }
-          return;
+
+          if (shouldSleep) {
+            bot.chat('🛏️ الليل! راح أنام...');
+            const bedPos = bed.position;
+            const goal = new goals.GoalNear(bedPos.x, bedPos.y, bedPos.z, 1);
+            bot.pathfinder.setGoal(goal);
+
+            if (bot.entity.position.distanceTo(bedPos) < 2) {
+              try {
+                await bot.sleep(bot.blockAt(bedPos));
+                bot.chat('💤 نايم...');
+              } catch (err) {
+                bot.chat('⚠️ ما قدرت أنام: ' + err.message);
+              }
+            }
+            return; // يوقف باقي الحركة لأنه نايم
+          }
         }
       }
 
@@ -106,7 +121,7 @@ function reconnect() {
   }, 15000); // إعادة تشغيل بعد 15 ثانية
 }
 
-// Express server عشان Render يضل صاحي
+// Express server عشان Render يظل صاحي
 const app = express();
 app.get('/', (req, res) => res.send('✅ AFK Bot شغال 24/7!'));
 app.listen(3000, () => console.log('🌐 WebServer شغال على بورت 3000'));
