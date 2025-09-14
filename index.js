@@ -68,7 +68,7 @@ function createBot() {
   }, 10000);
 
   // الذهاب لإحداثيات محددة
-  bot.goToCoords = function(117.632, 73.00000, 124.421) {
+  bot.goToCoords = function(targetX, targetY, targetZ) {
     if (!bot.entity) return;
     const interval = setInterval(() => {
       const pos = bot.entity.position;
@@ -110,5 +110,6 @@ setTimeout(createBot, 5000);
 
 // مثال استخدام الذهاب لإحداثيات (يمكنك تعديلها)
 setTimeout(() => {
-  if (bot) bot.goToCoords(100, 64, 200);
+  if (bot) bot.goToCoords(117.632, 73.0, 124.421);
+
 }, 20000);
