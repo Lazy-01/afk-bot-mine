@@ -87,7 +87,7 @@ function createBot() {
 }
 
 // التحرك لأي إحداثيات
-function goToCoords(x, y, z) {
+function goToCoords(117.632, 73.00000, 124.421) {
   const mcData = require('minecraft-data')(bot.version);
   bot.pathfinder.setMovements(new Movements(bot, mcData));
   const { GoalBlock } = goals;
