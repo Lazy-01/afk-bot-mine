@@ -6,7 +6,7 @@ const botConfig = {
   host: 'JOJO_VICE-NSjr.aternos.me', // غيرها لو السيرفر مختلف
   port: 14850,
   username: 'AFK_Bot',
-  version: '1.21', // يغطي 1.21.8
+  version: '1.21.8', // يغطي 1.21.8
   auth: 'offline'
 };
 
