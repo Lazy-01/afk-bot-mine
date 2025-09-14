@@ -9,6 +9,7 @@ const app = express();
 app.get('/', (req, res) => res.send('Bot is alive!'));
 app.listen(3000, () => console.log('🌐 Render Keep-Alive active'));
 
+// قراءة config.json
 const config = JSON.parse(fs.readFileSync('config.json'));
 const host = config.ip;
 const port = config.port;
@@ -20,6 +21,7 @@ let connected = false;
 let lastChat = 0;
 const actions = ['forward', 'back', 'left', 'right'];
 
+// إنشاء البوت
 function createBot() {
   bot = mineflayer.createBot({
     host,
@@ -46,15 +48,16 @@ function createBot() {
 
   // الدفاع التلقائي عن البوت
   bot.on('entityHurt', (entity) => {
-    if (!entity.type === 'mob') return;
-    bot.attack(entity);
+    if (entity.type === 'mob') {
+      bot.attack(entity);
+    }
   });
 
-  // حركة AFK + النوم
+  // حركة AFK + نوم
   setInterval(async () => {
     if (!connected) return;
 
-    // حركة عشوائية قصيرة
+    // حركة قصيرة عشوائية
     const action = actions[Math.floor(Math.random() * actions.length)];
     bot.setControlState(action, true);
     setTimeout(() => bot.setControlState(action, false), 2000);
@@ -71,10 +74,13 @@ function createBot() {
         matching: b => b.name.includes('bed'),
         maxDistance: 64
       });
+
       if (bed) {
         const goal = new goals.GoalBlock(bed.position.x, bed.position.y, bed.position.z);
         bot.pathfinder.setMovements(new Movements(bot));
-        bot.pathfinder.goto(goal).then(() => bot.sleep(bed).catch(() => {})).catch(() => {});
+        bot.pathfinder.goto(goal).then(() => {
+          bot.sleep(bed).catch(() => {});
+        }).catch(() => {});
       }
     }
   }, 10000);
