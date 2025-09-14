@@ -1,7 +1,7 @@
 {
   "name": "afkbot",
   "version": "1.0.0",
-  "description": "AFK bot for Minecraft 1.21.1/1.21.4 on Replit/Render",
+  "description": "Smart AFK bot for Minecraft 1.21.8 on Render/Replit",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -12,8 +12,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "mineflayer": "^4.33.0",
+    "prismarinejs/mineflayer": "github:PrismarineJS/mineflayer#master",
     "mineflayer-cmd": "^1.0.2",
-    "minecraft-data": "^3.98.0"
+    "express": "^4.18.2"
   }
 }
