@@ -1,5 +1,4 @@
 const mineflayer = require('mineflayer');
-const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const cmd = require('mineflayer-cmd').plugin;
 const fs = require('fs');
 const express = require('express');
@@ -32,7 +31,6 @@ function createBot() {
   });
 
   bot.loadPlugin(cmd);
-  bot.loadPlugin(pathfinder);
 
   bot.on('login', () => {
     console.log("✅ Logged In");
@@ -41,21 +39,13 @@ function createBot() {
   });
 
   bot.on('spawn', () => connected = true);
-
   bot.on('death', () => bot.emit("respawn"));
-
-  // الدفاع التلقائي
-  bot.on('entityHurt', (entity) => {
-    if (entity.type === 'mob') {
-      bot.attack(entity);
-    }
-  });
 
   // AFK + رسائل + نوم + حركة
   setInterval(() => {
     if (!connected) return;
 
-    // حركة قصيرة عشوائية
+    // حركة عشوائية قصيرة
     const action = actions[Math.floor(Math.random() * actions.length)];
     bot.setControlState(action, true);
     setTimeout(() => bot.setControlState(action, false), 2000);
@@ -66,7 +56,7 @@ function createBot() {
       lastChat = Date.now();
     }
 
-    // auto-night-skip
+    // auto-night-skip (يحاول النوم)
     if (nightskip && bot.time.timeOfDay >= 13000 && !bot.isSleeping) {
       const bed = bot.findBlock({
         matching: b => b.name.includes('bed'),
@@ -77,6 +67,35 @@ function createBot() {
 
   }, 10000);
 
+  // الذهاب لإحداثيات محددة
+  bot.goToCoords = function(117.632, 73.00000, 124.421) {
+    if (!bot.entity) return;
+    const interval = setInterval(() => {
+      const pos = bot.entity.position;
+      const dx = targetX - pos.x;
+      const dz = targetZ - pos.z;
+      const dy = targetY - pos.y;
+
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(dz) < 0.5) {
+        bot.setControlState('forward', false);
+        bot.setControlState('back', false);
+        bot.setControlState('left', false);
+        bot.setControlState('right', false);
+        bot.setControlState('jump', false);
+        clearInterval(interval);
+        console.log("✅ Reached target coordinates!");
+        return;
+      }
+
+      bot.setControlState('forward', Math.abs(dx) > Math.abs(dz) && dx > 0);
+      bot.setControlState('back', Math.abs(dx) > Math.abs(dz) && dx < 0);
+      bot.setControlState('right', Math.abs(dz) >= Math.abs(dx) && dz > 0);
+      bot.setControlState('left', Math.abs(dz) >= Math.abs(dx) && dz < 0);
+      bot.setControlState('jump', dy > 0.5);
+
+    }, 200);
+  };
+
   bot.on('end', () => {
     console.log("❌ Bot disconnected, reconnecting in 30s...");
     connected = false;
@@ -86,18 +105,10 @@ function createBot() {
   bot.on('error', (err) => console.log("⚠️ Error:", err.message));
 }
 
-// التحرك لأي إحداثيات
-function goToCoords(117.632, 73.00000, 124.421) {
-  const mcData = require('minecraft-data')(bot.version);
-  bot.pathfinder.setMovements(new Movements(bot, mcData));
-  const { GoalBlock } = goals;
-  bot.pathfinder.setGoal(new GoalBlock(x, y, z));
-}
-
 // بدء التشغيل
 setTimeout(createBot, 5000);
 
-// مثال: التحرك إلى إحداثيات محددة بعد 20 ثانية
+// مثال استخدام الذهاب لإحداثيات (يمكنك تعديلها)
 setTimeout(() => {
-  if (bot && bot.pathfinder) goToCoords(100, 64, 200);
+  if (bot) bot.goToCoords(100, 64, 200);
 }, 20000);
