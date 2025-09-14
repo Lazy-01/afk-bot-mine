@@ -6,7 +6,7 @@ const botConfig = {
   host: 'JOJO_VICE-NSjr.aternos.me',
   port: 14850,
   username: 'AFK_Bot',
-  version: '1.21.8',
+  version: false,
   auth: 'offline'
 };
 
@@ -80,10 +80,10 @@ function startBot() {
     }
   });
 
-  bot.on('kicked', (reason) => {
-    console.log(`❌ انطرد: ${reason}`);
-    reconnect();
-  });
+bot.on('kicked', (reason, loggedIn) => {
+  console.log(`❌ انطرد: ${JSON.stringify(reason)}`);
+});
+
 
   bot.on('end', () => {
     console.log('⚠️ انقطع الاتصال، إعادة تشغيل...');
