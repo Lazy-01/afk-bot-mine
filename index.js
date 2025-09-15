@@ -1,8 +1,9 @@
 const mineflayer = require('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const collectBlock = require('mineflayer-collectblock').plugin;
-const pvpPlugin = require('mineflayer-pvp').plugin;
+const { GoalFollow, GoalBlock } = goals;
 const express = require('express');
+const minecraftData = require('minecraft-data');
 
 const botConfig = {
   host: 'fi-01.freezehost.pro',
@@ -21,12 +22,12 @@ function startBot() {
   bot = mineflayer.createBot(botConfig);
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(collectBlock);
-  bot.loadPlugin(pvpPlugin);
 
   bot.once('spawn', async () => {
     console.log('✅ البوت دخل السيرفر!');
 
-    const defaultMove = new Movements(bot);
+    const mcData = minecraftData(bot.version);
+    const defaultMove = new Movements(bot, mcData);
     defaultMove.allowParkour = true;
     defaultMove.allowSprinting = true;
     defaultMove.canDig = true;
@@ -36,7 +37,7 @@ function startBot() {
     if (firstSpawn) {
       firstSpawn = false;
       try {
-        const goal = new goals.GoalBlock(targetCoords.x, targetCoords.y, targetCoords.z);
+        const goal = new GoalBlock(targetCoords.x, targetCoords.y, targetCoords.z);
         await bot.pathfinder.goto(goal);
 
         const bedBlock = bot.findBlock({
@@ -67,93 +68,84 @@ function startBot() {
     if (username === bot.username) return;
 
     const args = message.split(' ');
-    const cmd = args.shift().toLowerCase();
+    const cmd = args[0];
 
-    if (busy && cmd !== '!stop') {
-      return bot.chat('⚠️ أنا مشغول هسه، خلص المهمة الحالية أول.');
-    }
-
-    // متابعة لاعب
+    // !follow <player>
     if (cmd === '!follow') {
-      busy = true;
-      const targetName = args[0];
-      const target = bot.players[targetName]?.entity;
-      if (!target) {
-        bot.chat('⚠️ ما لقيت اللاعب');
-        busy = false;
-        return;
-      }
+      if (busy) return bot.chat('⚠️ مشغول حالياً.');
+      const playerName = args[1];
+      const target = bot.players[playerName]?.entity;
+      if (!target) return bot.chat('❌ ما لقيت اللاعب.');
 
-      bot.chat(`👣 جالس أتابع ${targetName}`);
-      const goal = new goals.GoalFollow(target, 2);
+      busy = true;
+      bot.chat(`🚶 بتبع ${playerName}...`);
+      const goal = new GoalFollow(target, 1);
       bot.pathfinder.setGoal(goal, true);
     }
 
-    // الحفر
+    // !mine <block> <amount> <x> <y> <z>
     if (cmd === '!mine') {
+      if (busy) return bot.chat('⚠️ مشغول حالياً.');
+      const blockName = args[1];
+      const amount = parseInt(args[2]);
+      const [x, y, z] = args.slice(3).map(Number);
+
+      if (!blockName || isNaN(amount) || isNaN(x) || isNaN(y) || isNaN(z)) {
+        return bot.chat('❌ صيغة الأمر: !mine <block> <amount> <x> <y> <z>');
+      }
+
+      const mcData = minecraftData(bot.version);
+      const blockId = mcData.blocksByName[blockName]?.id;
+      if (!blockId) return bot.chat('❌ اسم البلوك غير صحيح.');
+
       busy = true;
-      const blockName = args[0];
-      const amount = parseInt(args[1]);
-      const x = parseInt(args[2]);
-      const y = parseInt(args[3]);
-      const z = parseInt(args[4]);
-
-      if (!blockName || !amount || isNaN(x) || isNaN(y) || isNaN(z)) {
-        bot.chat('⚠️ الصيغة: !mine <block> <amount> <x> <y> <z>');
-        busy = false;
-        return;
-      }
-
-      const oldPos = bot.entity.position.clone();
-      const mcData = require('minecraft-data')(bot.version);
-      const blockType = mcData.blocksByName[blockName];
-      if (!blockType) {
-        bot.chat('⚠️ ما عرفت البلوك هذا');
-        busy = false;
-        return;
-      }
+      const startPos = bot.entity.position.clone();
 
       try {
-        const goal = new goals.GoalBlock(x, y, z);
+        const goal = new GoalBlock(x, y, z);
         await bot.pathfinder.goto(goal);
 
         let collected = 0;
-        while (collected < amount) {
-          const blocks = bot.findBlocks({
-            matching: blockType.id,
-            maxDistance: 32,
-            count: amount - collected
-          });
-          if (blocks.length === 0) break;
+        bot.on('blockBreakProgressEnd', (block) => {
+          if (block.name === blockName) collected++;
+          if (collected >= amount) {
+            bot.chat(`✅ جمعت ${amount} ${blockName}.`);
 
-          // جهز أفضل pickaxe
-          const pickaxesPriority = ['netherite_pickaxe','diamond_pickaxe','iron_pickaxe','stone_pickaxe','wooden_pickaxe'];
-          const pickaxe = bot.inventory.items().sort((a,b) => pickaxesPriority.indexOf(a.name) - pickaxesPriority.indexOf(b.name))[0];
-          if (pickaxe && pickaxesPriority.includes(pickaxe.name)) await bot.equip(pickaxe, 'hand');
+            // يرمي كل شي إلا البلوك المطلوب
+            bot.inventory.items().forEach(item => {
+              if (item.name !== blockName) {
+                bot.tossStack(item).catch(() => {});
+              }
+            });
 
-          await bot.collectBlock.collect(blocks.map(b => bot.blockAt(b)));
+            // يرجع مكانه
+            bot.pathfinder.goto(new GoalBlock(startPos.x, startPos.y, startPos.z));
+            busy = false;
+          }
+        });
 
-          collected = bot.inventory.items().filter(i => i.name === blockName).reduce((sum,i)=>sum+i.count,0);
+        const targets = [];
+        const block = bot.findBlock({
+          matching: blockId,
+          maxDistance: 32
+        });
+        if (block) targets.push(block);
+
+        if (targets.length) {
+          await bot.collectBlock.collect(targets, { count: amount });
+        } else {
+          bot.chat('❌ ما لقيت البلوك قريب.');
+          busy = false;
         }
-
-        // كب كل شي ما عدا البلوك المطلوب
-        const itemsToToss = bot.inventory.items().filter(i => i.name !== blockName);
-        for (const item of itemsToToss) {
-          try { await bot.tossStack(item); } catch(e){ console.log('⚠️ ما قدر يرمي:', item.name, e.message); }
-        }
-
-        // ارجع مكانه القديم
-        const returnGoal = new goals.GoalBlock(Math.floor(oldPos.x), Math.floor(oldPos.y), Math.floor(oldPos.z));
-        await bot.pathfinder.goto(returnGoal);
-
       } catch (err) {
-        bot.chat('⚠️ صار خطأ بالحفر: ' + err.message);
+        bot.chat('⚠️ خطأ: ' + err.message);
+        busy = false;
       }
-      busy = false;
     }
 
-    // القتال
+    // !kill
     if (cmd === '!kill') {
+      if (busy) return bot.chat('⚠️ مشغول حالياً.');
       busy = true;
 
       const mob = Object.values(bot.entities)
@@ -161,52 +153,69 @@ function startBot() {
         .sort((a, b) => bot.entity.position.distanceTo(a.position) - bot.entity.position.distanceTo(b.position))[0];
 
       if (!mob) {
-        bot.chat('⚠️ ما لقيت أي وحش قريب.');
+        bot.chat('❌ ما في وحوش قريبة.');
         busy = false;
         return;
       }
 
-      // أفضل سيف أو اليد
-      const swordsPriority = ['netherite_sword','diamond_sword','iron_sword','stone_sword','wooden_sword'];
-      let sword = bot.inventory.items().sort((a,b) => swordsPriority.indexOf(a.name) - swordsPriority.indexOf(b.name))[0];
-      if (sword && swordsPriority.includes(sword.name)) await bot.equip(sword, 'hand');
+      // أفضل سيف
+      const swordsPriority = ['netherite_sword', 'diamond_sword', 'iron_sword', 'stone_sword', 'wooden_sword'];
+      const sword = bot.inventory.items().find(i => swordsPriority.includes(i.name));
+      if (sword) await bot.equip(sword, 'hand');
 
-      bot.chat(`⚔️ مهاجم ${mob.name} القريب`);
+      bot.chat(`⚔️ بهجم على ${mob.name}`);
 
+      const pvp = require('mineflayer-pvp').plugin;
+      bot.loadPlugin(pvp);
       bot.pvp.attack(mob);
 
-      const checkInterval = setInterval(() => {
+      const interval = setInterval(() => {
         if (!mob.isValid || mob.health <= 0 || bot.entity.position.distanceTo(mob.position) > 16) {
-          clearInterval(checkInterval);
+          clearInterval(interval);
           bot.pvp.stop();
           busy = false;
-          bot.chat('✅ خلصت القتال أو ابتعد الوحش.');
+          bot.chat('✅ خلصت القتال.');
         }
       }, 1000);
     }
-
-    // أمر التوقف
-    if (cmd === '!stop') {
-      bot.pathfinder.setGoal(null);
-      busy = false;
-      bot.chat('🛑 وقفت المهمة.');
-    }
   });
 
-  bot.on('kicked', reason => { console.log(`❌ انطرد: ${reason}`); reconnect(); });
-  bot.on('end', () => { console.log('⚠️ انقطع الاتصال، إعادة تشغيل...'); reconnect(); });
-  bot.on('error', err => { console.log('⚠️ Error:', err.message); });
+  bot.on('physicsTick', () => {
+    // أي كود يتحرك كل تك
+  });
+
+  bot.on('kicked', (reason) => {
+    console.log(`❌ انطرد: ${reason}`);
+    reconnect();
+  });
+
+  bot.on('end', () => {
+    console.log('⚠️ انقطع الاتصال، إعادة تشغيل...');
+    reconnect();
+  });
+
+  bot.on('error', (err) => {
+    console.log('⚠️ Error:', err.message);
+  });
 }
 
 function reconnect() {
+  const delay = 20000; // 20 ثانية
+  console.log(`⏳ محاولة إعادة الاتصال بعد ${delay / 1000} ثانية...`);
   setTimeout(() => {
     console.log('🔄 إعادة تشغيل البوت...');
     startBot();
-  }, 5000);
+  }, delay);
 }
 
-process.on('uncaughtException', err => { console.log('💥 خطأ غير متوقع:', err.message); reconnect(); });
-process.on('unhandledRejection', err => { console.log('💥 Promise مرفوضة:', err.message); });
+process.on('uncaughtException', (err) => {
+  console.log('💥 خطأ غير متوقع:', err.message);
+  reconnect();
+});
+
+process.on('unhandledRejection', (err) => {
+  console.log('💥 Promise مرفوضة:', err.message);
+});
 
 const app = express();
 app.get('/', (req, res) => res.send('✅ Bot شغال 24/7!'));
